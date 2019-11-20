@@ -122,14 +122,12 @@ local rage_recoil = ui.reference("RAGE", "Other", "Remove recoil")
 local rage_autowall = ui.reference("RAGE", "Aimbot", "Automatic penetration")
 local rage_fakeduck = ui.reference("RAGE", "Other", "Duck peek assist")
 local infinite_duck = ui.reference("MiSC", "Movement", "Infinite duck")
-local auto_pistols = ui.reference("MISC", "Miscellaneous", "Automatic weapons")
 
 local autofire = ui.reference("RAGE", "Aimbot", "Automatic fire")
 local psilent = ui.reference("RAGE", "Aimbot", "Silent aim")
 local aimstep = ui.reference("RAGE", "Aimbot", "Reduce aim step")
 local maximum_fov = ui.reference("RAGE", "Aimbot", "Maximum FOV")
 
-local flag_limit = ui.reference("AA", "Fake lag", "Limit")
 local pitch = ui.reference("AA", "Anti-aimbot angles", "Pitch")
 local yaw_base = ui.reference("AA", "Anti-aimbot angles", "Yaw base")
 local yaw, yaw_num = ui.reference("AA", "Anti-aimbot angles", "Yaw")
@@ -217,7 +215,7 @@ local function get_atan(ent, eye_pos, camera)
     return data.id, data.dst
 end
 
-local function get_nearbox(z_pos)
+local function get_nearbox()
     client.update_player_list()
 
     local plist_bk = ui_get(playerlist)
@@ -231,8 +229,6 @@ local function get_nearbox(z_pos)
     local smoke_check = not ui_get(menu.smoke_check)
     local eye_pos = vector(client_eye_position())
     local camera = vector(client_camera_angles())
-
-    camera.z = z_pos ~= nil and 64 or camera.z
 
     local local_head = { entity_hitbox_position(get_local(), 0) }
 
@@ -365,27 +361,6 @@ set_visible()
 ui.set_callback(menu.enabled, set_visible)
 ui.set_callback(menu.legit_aa, set_visible)
 
-local cache = { }
-local cache_process = function(name, condition, should_call, a, b)
-    cache[name] = cache[name] ~= nil and cache[name] or ui_get(condition)
-
-    if should_call then
-        if type(a) == "function" then a() else
-            ui_set(condition, a)
-        end
-    else
-        if cache[name] ~= nil then
-            if b ~= nil and type(b) == "function" then
-                b(cache[name])
-            else
-                ui_set(condition, cache[name])
-            end
-
-            cache[name] = nil
-        end
-    end
-end
-
 client.set_event_callback("setup_command", function(cmd)
     local local_player = get_local()
     
@@ -401,31 +376,20 @@ client.set_event_callback("setup_command", function(cmd)
     local ractive = ui_get(rage_active)
 
     local in_legit = ui_get(legit_active) and ui_get(legit_key)
-    local fakeduck_ready = ractive and ui_get(infinite_duck) and ui_get(rage_fakeduck)
 
-    local enemy, hid, dst = get_nearbox(fakeduck_ready)
+    local enemy, hid, dst = get_nearbox()
     local hitbox = find_cmd(hitscan, hid)
 
     ui_mset({
         [rage_selection] = 'Near crosshair',
         [rage_hitbox] = contains(ui_get(menu.nearest), hitbox) and hitbox or ui_get(rage_hitbox),
 
-        [maximum_fov] = fov > 10 and 10 or fov,
+        [maximum_fov] = fov > 35 and 35 or fov,
         [rage_recoil] = false,
         [aimstep] = false,
         [psilent] = false,
         [autofire] = true
     })
-
-    -- cache_process("rage_active", rage_active, in_legit and not fakeduck_ready, false)
-    cache_process("on_fakeduck_ph1", flag_limit, ractive and fakeduck_ready, 14)
-    cache_process("on_fakeduck_ph2", auto_pistols, ractive and fakeduck_ready, false)
-    cache_process("on_fakeduck_ph3", legit_active, ractive and fakeduck_ready, function()
-        ui_set(legit_active, false)
-        if get_prop(local_player, "m_flDuckAmount") > 0.01 then
-            cmd.in_attack = 0
-        end
-    end)
 end)
 
 client.set_event_callback("paint", function()
