@@ -11,9 +11,11 @@ end
 local handler = nil
 local timer, enabled = 0, true
 
+local snd_time = 0.6
+
 handler = function()
     if globals.realtime() >= timer then
-        timer = globals.realtime() + 0.6
+        timer = globals.realtime() + snd_time
         
         if enabled then
             disable_func()
@@ -25,7 +27,7 @@ handler = function()
 end
 
 local active = ui.new_checkbox("MISC", "Miscellaneous", "F12 sound (microphone)")
-local loopback = ui.new_checkbox("MISC", "Miscellaneous", "Sound loopback")
+local loopback = ui.new_checkbox("MISC", "Miscellaneous", "Sound loop back")
 
 client.set_event_callback("shutdown", disable_func)
 client.set_event_callback("player_death", function(e)
@@ -50,7 +52,7 @@ client.set_event_callback("player_death", function(e)
         cvar.voice_inputfromfile:set_int(1)
 
         client.exec('+voicerecord')
-        timer, enabled = globals.realtime() + 0.6, true
+        timer, enabled = globals.realtime() + snd_time, true
     end
 end)
 
