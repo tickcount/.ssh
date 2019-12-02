@@ -25,7 +25,7 @@ handler = function()
 end
 
 local active = ui.new_checkbox("MISC", "Miscellaneous", "F12 sound (microphone)")
-local loopback = ui.new_checkbox("MISC", "Miscellaneous", "Sound loop back")
+local loopback = ui.new_checkbox("MISC", "Miscellaneous", "Sound loopback")
 
 client.set_event_callback("shutdown", disable_func)
 client.set_event_callback("player_death", function(e)
