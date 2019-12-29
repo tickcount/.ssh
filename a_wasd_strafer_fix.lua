@@ -22,7 +22,7 @@ local command = function(e)
         local air_accel = cvar.sv_airaccelerate:get_int()
         local end_val = -0.614*air_accel + 686/11
 
-        ui.set(strafer_smoothing, clamp(end_val, 1, 99))
+        ui.set(strafer_smoothing, clamp(end_val, 2, 99))
     else
         ui.set(strafer_smoothing, 0)
     end
