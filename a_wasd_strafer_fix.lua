@@ -17,20 +17,15 @@ local command = function(e)
         e.in_moveleft,
         e.in_moveright
     }
+    
+    local air_accel = cvar.sv_airaccelerate:get_int()
+    local end_val = -0.522*air_accel + 1476/23
 
-    if contains(list, 1) then
-        local air_accel = cvar.sv_airaccelerate:get_int()
-        local end_val = -0.614*air_accel + 686/11
+    ui.set(strafer_smoothing, clamp(end_val, 0, 60))
 
-        ui.set(strafer_smoothing, clamp(end_val, 2, 99))
-    else
+    if air_accel <= 45 and not contains(list, 1) then
         ui.set(strafer_smoothing, 0)
     end
 end
 
-ui.set_visible(strafer_smoothing, false)
-
 client.set_event_callback('setup_command', command)
-client.set_event_callback('shutdown', function()
-    ui.set_visible(strafer_smoothing, true)
-end)
