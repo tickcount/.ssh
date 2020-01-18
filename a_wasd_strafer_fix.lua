@@ -21,7 +21,7 @@ local command = function(e)
     local air_accel = cvar.sv_airaccelerate:get_int()
     local end_val = -0.614*air_accel + 686/11
 
-    ui.set(strafer_smoothing, clamp(end_val, 0, 60))
+    ui.set(strafer_smoothing, clamp(end_val, 1, 60))
 
     if air_accel <= 45 and not contains(list, 1) then
         ui.set(strafer_smoothing, 0)
