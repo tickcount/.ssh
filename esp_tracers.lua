@@ -1,53 +1,7 @@
 local ffi = require 'ffi'
 
-ffi.cdef[[
-    typedef struct  {
-		float x;
-		float y;
-		float z;	
-    }vec3_t;
-    
-    struct beam_info_t {
-        int			m_type;
-        void* m_start_ent;
-        int			m_start_attachment;
-        void* m_end_ent;
-        int			m_end_attachment;
-        vec3_t		m_start;
-        vec3_t		m_end;
-        int			m_model_index;
-        const char	*m_model_name;
-        int			m_halo_index;
-        const char	*m_halo_name;
-        float		m_halo_scale;
-        float		m_life;
-        float		m_width;
-        float		m_end_width;
-        float		m_fade_length;
-        float		m_amplitude;
-        float		m_brightness;
-        float		m_speed;
-        int			m_start_frame;
-        float		m_frame_rate;
-        float		m_red;
-        float		m_green;
-        float		m_blue;
-        bool		m_renderable;
-        int			m_num_segments;
-        int			m_flags;
-        vec3_t		m_center;
-        float		m_start_radius;
-        float		m_end_radius;
-    };
-
-    typedef void (__thiscall* draw_beams_t)(void*, void*);
-    typedef void*(__thiscall* create_beam_points_t)(void*, struct beam_info_t&);
-]]
-
 local dir = { "Visuals", "Effects" }
 local blist = { "blueglow1", "bubble", "glow01", "physbeam", "purpleglow1", "light_glow02", "purplelaser1", "radio", }
-
-local process_ticks = ui.reference("MISC", "Settings", "sv_maxusrcmdprocessticks")
 
 local tracers = ui.new_checkbox(dir[1], dir[2], "Bullet beams")
 local tracers_style = ui.new_combobox(dir[1], dir[2], "\n style", blist)
@@ -64,6 +18,50 @@ local tracers_enemy = ui.new_checkbox(dir[1], dir[2], "Tracers enemy color")
 local tracers_color_enemy = ui.new_color_picker(dir[1], dir[2], "Bullet beams color 3", 255, 0, 0, 255)
 
 ui.set(tracers_style, "physbeam")
+
+ffi.cdef[[
+    typedef struct {
+		float x;
+		float y;
+		float z;	
+    } vec3_t;
+    
+    struct beam_info_t {
+        int m_type;
+        void* m_start_ent;
+        int m_start_attachment;
+        void* m_end_ent;
+        int m_end_attachment;
+        vec3_t m_start;
+        vec3_t m_end;
+        int m_model_index;
+        const char *m_model_name;
+        int m_halo_index;
+        const char *m_halo_name;
+        float m_halo_scale;
+        float m_life;
+        float m_width;
+        float m_end_width;
+        float m_fade_length;
+        float m_amplitude;
+        float m_brightness;
+        float m_speed;
+        int m_start_frame;
+        float m_frame_rate;
+        float m_red;
+        float m_green;
+        float m_blue;
+        bool m_renderable;
+        int m_num_segments;
+        int m_flags;
+        vec3_t m_center;
+        float m_start_radius;
+        float m_end_radius;
+    };
+
+    typedef void (__thiscall* draw_beams_t)(void*, void*);
+    typedef void*(__thiscall* create_beam_points_t)(void*, struct beam_info_t&);
+]]
 
 local render_beams_signature = "\xB9\xCC\xCC\xCC\xCC\xA1\xCC\xCC\xCC\xCC\xFF\x10\xA1\xCC\xCC\xCC\xCC\xB9"
 local match = client.find_signature("client_panorama.dll", render_beams_signature) or error("render_beams_signature not found")
@@ -115,13 +113,15 @@ local create_beams = function(startpos, endpos, red, green, blue, alpha)
     end
 end
 
-local shot_data = { }
-local origin_data = { }
-local attack_time = 0
+-- HANDLER
+local data = {
+    origin = { },
+    impacts = { },
+    last_attack = 0
+}
 
 local reset = function()
-    shot_data = { }
-    origin_data = { }
+    data = { origin = { }, impacts = { }, last_attack = 0 }
 end
 
 local command = function(e)
@@ -130,57 +130,55 @@ local command = function(e)
 
     local next_attack = entity.get_prop(wpn, "m_flNextPrimaryAttack")
 
-    if attack_time ~= next_attack or attack_time == 0 then
-        if attack_time ~= 0 then
+    if me == nil or wpn == nil or next_attack == nil then
+        return
+    end
+
+    if data.last_attack ~= next_attack or data.last_attack == 0 then
+        if data.last_attack ~= 0 then
             for i = 10, 2, -1 do 
-                origin_data[i] = origin_data[i-1]
+                data.origin[i] = data.origin[i-1]
             end
 
-            origin_data[1] = { client.eye_position() }
+            data.origin[1] = { client.eye_position() }
         end
 
-        attack_time = next_attack
+        data.last_attack = next_attack
     end
 end
 
 local bullet_handler = function(e)
-    if not ui.get(tracers) or #origin_data == 0 then
+    if not ui.get(tracers) or #data.origin == 0 then
         return
     end
+
+    local tick = globals.tickcount()
 
     local target = client.userid_to_entindex(e.userid)
     local me = entity.get_local_player()
-    local tick = globals.tickcount()
 
-    local is_enemy = ui.get(tracers_enemy) and entity.is_enemy(target)
-
-    if target ~= me and not is_enemy then
-        return
-    end
-
-    if shot_data[tick] == nil then
-        shot_data[tick] = {
+    if data.impacts[tick] == nil then data.impacts[tick] = { } end
+    if data.impacts[tick][target] == nil then 
+        data.impacts[tick][target] = {
             impacts = { }
         }
     end
 
-    local impacts = shot_data[tick].impacts
-    local eye_pos = is_enemy and { entity.hitbox_position(target, 0) } or nil
+    local imp_data = data.impacts[tick][target]
 
-    shot_data[tick].enemy = is_enemy
-    shot_data[tick].eye_pos = eye_pos
-    shot_data[tick].draw = true
+    imp_data.should_draw = true
+    imp_data.did_hit = false
+    imp_data.is_enemy = target ~= me and entity.is_enemy(target)
+    imp_data.eye_pos = target ~= me and { entity.hitbox_position(target, 0) } or nil
 
-    shot_data[tick].hit = false
-
-    impacts[#impacts + 1] = {
+    imp_data.impacts[#imp_data.impacts + 1] = {
         x = e.x,
         y = e.y,
         z = e.z
     }
 end
 
-local hit_handler = function(e)
+local hurt_handler = function(e)
     if not ui.get(tracers) or not ui.get(tracers_hit) then
         return
     end
@@ -195,27 +193,31 @@ local hit_handler = function(e)
         [7] = {8, 10, 12}
     }
 
-    local victim_entindex   = client.userid_to_entindex(e.userid)
+    local tick = globals.tickcount()
+
+    local me = entity.get_local_player()
+    local victim_entindex = client.userid_to_entindex(e.userid)
     local attacker_entindex = client.userid_to_entindex(e.attacker)
 
     if attacker_entindex ~= entity.get_local_player() then
         return
     end
 
-    local tick = globals.tickcount()
-    local data = shot_data[tick]
-
-    if shot_data[tick] == nil or shot_data[tick].enemy or data.impacts == nil then
+    if data.impacts[tick] == nil or data.impacts[tick][me] == nil or data.impacts[tick][me].impacts == nil then
         return
     end
 
-    local impacts = data.impacts
+    local data = data.impacts[tick][me]
+
+    local simpacts = data.impacts
     local hitboxes = hitgroups[e.hitgroup]
+
+    -- calculations
     local hit = nil
     local closest = math.huge
 
-    for i=1, #impacts do
-        local impact = impacts[i]
+    for i=1, #simpacts do
+        local impact = simpacts[i]
 
         if hitboxes ~= nil then
             for j=1, #hitboxes do
@@ -230,38 +232,44 @@ local hit_handler = function(e)
         end
     end
 
-    if hit == nil then
-        return
-    end
-
-    shot_data[tick].hit = true
+    data.did_hit = hit ~= nil
 end
 
 local paint_handler = function()
     if not ui.get(tracers) then
-        return
+        return reset()
     end
 
-    for tick, data in pairs(shot_data) do
-        if data.draw then
-            data.draw = false
+    local me = entity.get_local_player()
 
-            local impacts = data.impacts
-            local last_impact = impacts[#impacts]
+    for tick, entities in pairs(data.impacts) do
+        for key, target in pairs(entities) do
+            local target_checks = me == key or (ui.get(tracers_enemy) and entity.is_enemy(key))
 
-            local r, g, b, a = ui.get(data.enemy and tracers_color_enemy or tracers_color)
-
-            if ui.get(tracers_hit) and not data.enemy and data.hit then
-                r, g, b, a = ui.get(tracers_color_hit) 
+            if target.should_draw and not target_checks then
+                target.should_draw = false
             end
 
-            create_beams({ last_impact.x, last_impact.y, last_impact.z }, (data.eye_pos ~= nil and data.eye_pos or origin_data[1]), r, g, b, a)
+            if target.should_draw then
+                target.should_draw = false
+
+                local impacts = target.impacts
+                local last_impact = impacts[#impacts]
+
+                local r, g, b, a = ui.get(target.is_enemy and tracers_color_enemy or tracers_color)
+
+                if ui.get(tracers_hit) and not target.is_enemy and target.did_hit then
+                    r, g, b, a = ui.get(tracers_color_hit) 
+                end
+
+                create_beams({ last_impact.x, last_impact.y, last_impact.z }, (target.eye_pos ~= nil and target.eye_pos or data.origin[1]), r, g, b, a)
+            end
         end
     end
 end
 
 client.set_event_callback("predict_command", command)
 client.set_event_callback("bullet_impact", bullet_handler)
-client.set_event_callback("player_hurt", hit_handler)
+client.set_event_callback("player_hurt", hurt_handler)
 client.set_event_callback("paint", paint_handler)
 client.set_event_callback("round_start", reset)
