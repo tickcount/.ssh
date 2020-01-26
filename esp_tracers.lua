@@ -124,19 +124,22 @@ local reset = function()
     origin_data = { }
 end
 
-local aim_fire = function() 
-    origin_data[#origin_data+1] = { client.eye_position() }
-end
-
 local command = function(e)
     local me = entity.get_local_player()
     local wpn = entity.get_player_weapon(me)
 
     local next_attack = entity.get_prop(wpn, "m_flNextPrimaryAttack")
 
-    if attack_time ~= next_attack then
+    if attack_time ~= next_attack or attack_time == 0 then
+        if attack_time ~= 0 then
+            for i = 10, 2, -1 do 
+                origin_data[i] = origin_data[i-1]
+            end
+
+            origin_data[1] = { client.eye_position() }
+        end
+
         attack_time = next_attack
-        origin_data[#origin_data+1] = { client.eye_position() }
     end
 end
 
@@ -161,14 +164,8 @@ local bullet_handler = function(e)
         }
     end
 
-    local eye_pos = { 0, 0, 0 }
     local impacts = shot_data[tick].impacts
-
-    if not is_enemy then
-        eye_pos = origin_data[#origin_data]
-    else
-        eye_pos = { entity.hitbox_position(target, 0) }
-    end
+    local eye_pos = is_enemy and { entity.hitbox_position(target, 0) } or nil
 
     shot_data[tick].enemy = is_enemy
     shot_data[tick].eye_pos = eye_pos
@@ -258,14 +255,13 @@ local paint_handler = function()
                 r, g, b, a = ui.get(tracers_color_hit) 
             end
 
-            create_beams(data.eye_pos, { last_impact.x, last_impact.y, last_impact.z }, r, g, b, a)
+            create_beams({ last_impact.x, last_impact.y, last_impact.z }, (data.eye_pos ~= nil and data.eye_pos or origin_data[1]), r, g, b, a)
         end
     end
 end
 
-client.set_event_callback("aim_fire", aim_fire)
-client.set_event_callback("setup_command", command)
+client.set_event_callback("predict_command", command)
 client.set_event_callback("bullet_impact", bullet_handler)
 client.set_event_callback("player_hurt", hit_handler)
-client.set_event_callback("round_start", reset)
 client.set_event_callback("paint", paint_handler)
+client.set_event_callback("round_start", reset)
