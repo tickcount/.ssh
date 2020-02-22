@@ -5,6 +5,9 @@ local command_setup = function(e)
     local me = entity.get_local_player()
     local wpn = entity.get_player_weapon(me)
 
+    local vel = { entity.get_prop(me, 'm_vecVelocity') }
+    local in_move = math.sqrt(vel[1]^2 * vel[2]^2) > 1 and not (vel[3]^2 > 0)
+
     if wpn ~= nil and entity.get_classname(wpn) == 'CC4' then
         if e.in_attack == 1 then
             e.in_attack = 0
@@ -16,7 +19,7 @@ local command_setup = function(e)
         end
     end
 
-    if ui.get(disable_twist) then
+    if ui.get(disable_twist) and in_move then
         ui.set(ref_pitch, 'Off')
     end
 end
