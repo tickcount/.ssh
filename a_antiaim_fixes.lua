@@ -1,7 +1,9 @@
 local ref_pitch = ui.reference('AA', 'Anti-aimbot angles', 'Pitch')
 local disable_twist = ui.new_checkbox('AA', 'Anti-aimbot angles', 'Disable twist')
 
-local command_setup = function(e)
+local global_pitch = ui.get(ref_pitch)
+
+client.set_event_callback('setup_command', function(e)
     local me = entity.get_local_player()
     local wpn = entity.get_player_weapon(me)
 
@@ -20,13 +22,17 @@ local command_setup = function(e)
     end
 
     if ui.get(disable_twist) and in_move then
-        ui.set(ref_pitch, 'Off')
-    end
-end
+        global_pitch = global_pitch or ui.get(ref_pitch)
 
-client.set_event_callback('setup_command', command_setup)
+        if global_pitch ~= nil then
+            ui.set(ref_pitch, 'Off')
+        end
+    end
+end)
+
 client.set_event_callback('run_command', function()
-    if ui.get(disable_twist) then
-        ui.set(ref_pitch, 'Down')
+    if ui.get(disable_twist) and global_pitch ~= nil then
+        ui.set(ref_pitch, global_pitch)
+        global_pitch = nil
     end
 end)
