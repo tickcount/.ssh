@@ -1,7 +1,7 @@
 local ref_pitch = ui.reference('AA', 'Anti-aimbot angles', 'Pitch')
 local disable_twist = ui.new_checkbox('AA', 'Anti-aimbot angles', 'Disable twist')
 
-local global_pitch = ui.get(ref_pitch)
+local global_pitch = nil
 
 client.set_event_callback('setup_command', function(e)
     local me = entity.get_local_player()
