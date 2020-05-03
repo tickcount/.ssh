@@ -22,7 +22,7 @@ local entity_get_prop = entity.get_prop
 local contains = function(tab, val) for i = 1, #tab do if tab[i] == val then return true; end end; return false end
 local el = {
     prefer_head = { 'Target shot fired', 'In air', 'Is crouching', 'Is walking', 'Backwards/Forwards', 'Sideways' },
-    prefer_body = { 'Force condition', 'Target shot fired', 'In air', 'Is crouching', 'Is walking', 'Backwards/Forwards', 'Sideways', '2 Shots', 'Lethal', '<x HP', 'Correction inactive', --[[ 'Big desync range', 'Jitter desync' ]] },
+    prefer_body = { 'Force condition', 'Target shot fired', 'In air', 'Is crouching', 'Is walking', 'Backwards/Forwards', 'Sideways', '2 Shots', 'Lethal', '<x HP', 'Correction active', --[[ 'Big desync range', 'Jitter desync' ]] },
 }
 
 local player_data = { }
@@ -208,7 +208,7 @@ local callback_pl = function(me, e)
             contains(element, '2 Shots') and g_damage >= (health / 2),
             contains(element, 'Lethal') and g_damage >= health,
             contains(element, '<x HP') and net_data.is_hp_less,
-            contains(element, 'Correction inactive') and not ui_get(or_cactive),
+            contains(element, 'Correction active') and ui_get(or_cactive),
 
             -- contains(element, 'Big desync range') and net_data.big_desync_range,
             -- contains(element, 'Jitter desync') and net_data.desyncing_jitter,
