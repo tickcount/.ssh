@@ -46,8 +46,8 @@ local create_custom_item = function(req, ref)
     end
 
     local get_script_name = function()
-        local funca, err = pcall(function() _G() end)
-        return (not funca and (err:match('\\(.*):'):sub(1, -3)) or nil)
+        local funca, err = pcall(function() GS_THROW_ERROR() end)
+        return (not funca and err:match("\\(.*):(.*):") or nil)
     end
 
     if not reference_if_exists(ref[1], ref[2], ref[3]) then
