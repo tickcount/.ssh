@@ -122,7 +122,7 @@ local g_paint_handler = function()
         m_active[case_name] = {
             active = true,
             offset = text_width,
-            mode = 'toggled',
+            mode = '~',
             alpha = 1,
         }
     end
