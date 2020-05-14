@@ -18,7 +18,7 @@ return client.delay_call(0.1, function()
         local me = entity.get_local_player()
         local m_vecvel = { entity.get_prop(me, 'm_vecVelocity') }
 
-        if math.floor(math.sqrt(m_vecvel[1]^2 + m_vecvel[2]^2 + m_vecvel[3]^2) + 0.5) > 0 then
+        if math.floor(math.sqrt(m_vecvel[1]^2 + m_vecvel[2]^2 + m_vecvel[3]^2) + 0.5) > 1 then
             g_cache = ui.get(enabled)
             ui.set(enabled, false)
         end
