@@ -1,5 +1,20 @@
 local ffi = require("ffi")
 
+local entity_get_local_player = entity.get_local_player
+local entity_get_players = entity.get_players
+local entity_get_prop = entity.get_prop
+local globals_chokedcommands = globals.chokedcommands
+
+local math_floor = math.floor
+local globals_tickinterval = globals.tickinterval
+
+local string_lower = string.lower
+local table_concat = table.concat
+local entity_get_player_name = entity.get_player_name
+local string_format = string.format
+local client_userid_to_entindex = client.userid_to_entindex
+local entity_is_enemy = entity.is_enemy
+
 ffi.cdef[[
 	typedef void***(__thiscall* FindHudElement_t)(void*, const char*);
 	typedef void(__cdecl* ChatPrintf_t)(void*, int, int, const char*, ...);
@@ -65,7 +80,7 @@ local function reset_aimdata()
 end
 
 local function time_to_ticks(t)
-	return math.floor(0.5 + (t / globals.tickinterval()))
+	return math_floor(0.5 + (t / globals_tickinterval()))
 end
 
 local function compare(tab, val)
@@ -79,28 +94,27 @@ local function compare(tab, val)
 end
 
 client.set_event_callback("net_update_end", function(e)
-	local me = entity.get_local_player()
-	local players = entity.get_players(true)
+	local me = entity_get_local_player()
+	local players = entity_get_players(true)
 
-	local m_tick_base = entity.get_prop(me, "m_nTickBase")
+	local m_tick_base = entity_get_prop(me, "m_nTickBase")
 	
 	script.shifted_tick = false
 
-    if m_tick_base < script.g_tick_base then
-        script.shifted_tick = true
-    end
-
-    script.g_tick_base = m_tick_base
+	if m_tick_base ~= nil then
+		if m_tick_base < script.g_tick_base then
+			script.shifted_tick = true
+		end
+	
+		script.g_tick_base = m_tick_base
+	end
 
 	for i=1, #players do
 		local target = players[i]
-		local newtick = time_to_ticks(entity.get_prop(target, "m_flSimulationTime"))
+		local newtick = time_to_ticks(entity_get_prop(target, "m_flSimulationTime"))
 		local oldtick = script.g_sim_ticks[target]
 
 		if oldtick ~= nil then
-			-- ignore if simulation time went back in time
-			-- ignore if the player was dormant for a while (delta is huge)
-
 			local delta = newtick - oldtick
 
 			if delta > 0 and delta <= 64 then
@@ -114,7 +128,7 @@ end)
 
 client.set_event_callback("aim_fire", function(e)
 	e.target_choke = script.g_chokes[e.target] or 0
-	e.local_choke = globals.chokedcommands()
+	e.local_choke = globals_chokedcommands()
 
 	script.g_aim_data[e.id % 16] = e
 end)
@@ -137,42 +151,20 @@ client.set_event_callback("aim_miss", function(e)
 		on_fire_data.extrapolated and 'E' or '',
 		on_fire_data.boosted and 'B' or '',
 		on_fire_data.high_priority and 'H' or ''
-	}
+    }
 
-	local name = string.lower(entity.get_player_name(e.target))
+	local name = string_lower(entity_get_player_name(e.target))
 	local hgroup = script.hitgroup_names[e.hitgroup + 1] or '?'
-	local hitchance = math.floor(on_fire_data.hit_chance + 0.5) .. "%%"
-	local bt = time_to_ticks(on_fire_data.backtrack)
+	local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. "%%"
+    local bt = time_to_ticks(on_fire_data.backtrack)
+    
+    local text_format = {
+        string_format("[%d] Missed %s's %s(%i)(%s) due to %s, bt=%i (%s) (%i:%i)", e.id % 100, name, hgroup, on_fire_data.damage, hitchance, e.reason, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke),
+        string_format(" \x08[\x06%d\x08] Missed %s's \x10%s\x08(%i)(%s) due to \x07%s\x08, bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)", e.id % 100, name, hgroup, on_fire_data.damage, hitchance, e.reason, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke)
+    }
 
-	if compare(dtype, script.type[1]) then
-		print(string.format("[%d] Missed %s's %s(%i)(%s) due to %s, bt=%i (%s) (%i:%i)",
-			e.id % 100,
-			name,
-			hgroup,
-			on_fire_data.damage,
-			hitchance,
-			e.reason,
-			bt,
-			table.concat(flags),
-			on_fire_data.local_choke,
-			on_fire_data.target_choke
-		))
-	end
-
-	if compare(dtype, script.type[2]) then
-		print_chat(string.format(" \x08[\x06%d\x08] Missed %s's \x10%s\x08(%i)(%s) due to \x07%s\x08, bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)", 
-			e.id % 100,
-			name,
-			hgroup,
-			on_fire_data.damage,
-			hitchance,
-			e.reason,
-			bt,
-			table.concat(flags),
-			on_fire_data.local_choke,
-			on_fire_data.target_choke
-		))
-	end
+	if compare(dtype, script.type[1]) then print(text_format[1]) end
+	if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
 end)
 
 client.set_event_callback("aim_hit", function(e)
@@ -191,80 +183,53 @@ client.set_event_callback("aim_hit", function(e)
 		on_fire_data.extrapolated and 'E' or '',
 		on_fire_data.boosted and 'B' or '',
 		on_fire_data.high_priority and 'H' or ''
-	}
+    }
 
-	local name = string.lower(entity.get_player_name(e.target))
+	local name = string_lower(entity_get_player_name(e.target))
 	local hgroup = script.hitgroup_names[e.hitgroup + 1] or '?'
 	local aimed_hgroup = script.hitgroup_names[on_fire_data.hitgroup + 1] or '?'
 
-	local hitchance = math.floor(on_fire_data.hit_chance + 0.5) .. "%%"
+	local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. "%%"
 	local bt = time_to_ticks(on_fire_data.backtrack)
 
-	local health = entity.get_prop(e.target, 'm_iHealth')
+    local health = entity_get_prop(e.target, 'm_iHealth')
+    local prev_dmg = e.damage ~= on_fire_data.damage and " (\x10" .. on_fire_data.damage .. "\x08)" or ""
 
-	if compare(dtype, script.type[1]) then
-		print(string.format("[%d] Hit %s's %s for %i(%d) (%i remaining) aimed=%s(%s) bt=%i (%s) (%i:%i)",
-			e.id % 100,
-			name,
-			hgroup,
-			e.damage,
-			on_fire_data.damage,
-			health,
-			aimed_hgroup,
-			hitchance,
-			bt,
-			table.concat(flags),
-			on_fire_data.local_choke,
-			on_fire_data.target_choke
-		))
-	end
+    local text_format = {
+        string_format("[%d] Hit %s's %s for %i(%d) (%i remaining) aimed=%s(%s) bt=%i (%s) (%i:%i)", e.id % 100, name, hgroup, e.damage, on_fire_data.damage, health, aimed_hgroup, hitchance, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke),
+        string_format(" \x08[\x06%d\x08] Hit %s's \x10%s\x08 for \x07%i\x08%s (%i \x08remaining) aimed=\x0C%s\x08(%s) bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)", e.id % 100, name, hgroup, e.damage, prev_dmg, health, aimed_hgroup, hitchance, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke )
+    }
 
-	if compare(dtype, script.type[2]) then
-		local prev_dmg = e.damage ~= on_fire_data.damage and " (\x10" .. on_fire_data.damage .. "\x08)" or ""
-
-		print_chat(string.format(" \x08[\x06%d\x08] Hit %s's \x10%s\x08 for \x07%i\x08%s (%i \x08remaining) aimed=\x0C%s\x08(%s) bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)",
-			e.id % 100,
-			name,
-			hgroup,
-			e.damage,
-			prev_dmg,
-			health,
-			aimed_hgroup,
-			hitchance,
-			bt,
-			table.concat(flags),
-			on_fire_data.local_choke,
-			on_fire_data.target_choke
-		))
-	end
+	if compare(dtype, script.type[1]) then print(text_format[1]) end
+	if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
 end)
 
 client.set_event_callback('player_hurt', function(e)
 	local dtype = ui.get(log_type)
-    local attacker_id = client.userid_to_entindex(e.attacker)
+    local attacker_id = client_userid_to_entindex(e.attacker)
 	
-    if #dtype == 0 or attacker_id == nil or attacker_id ~= entity.get_local_player() then
+    if #dtype == 0 or attacker_id == nil or attacker_id ~= entity_get_local_player() then
         return
     end
 
     local group = script.hitgroup_names[e.hitgroup + 1] or "?"
-	local target_id = client.userid_to_entindex(e.userid)
+	local target_id = client_userid_to_entindex(e.userid)
 	
-	if not entity.is_enemy(target_id) then
+	if not entity_is_enemy(target_id) then
 		return
 	end
 	
 	if group == "generic" then
 		if script.weapon_to_verb[e.weapon] ~= nil then
-			local target_name = entity.get_player_name(target_id)
+            local target_name = entity_get_player_name(target_id)
+            
+            local text_format = {
+                string_format("%s %s for %i damage (%i remaining) ", script.weapon_to_verb[e.weapon], string_lower(target_name), e.dmg_health, e.health),
+                string_format(" \x08%s \x03%s \x08for \x07%i\x08 damage (\x10%i \x08remaining)", script.weapon_to_verb[e.weapon], string_lower(target_name), e.dmg_health, e.health)
+            }
 
-			if compare(dtype, script.type[1]) then
-				print(string.format("%s %s for %i damage (%i remaining) ", script.weapon_to_verb[e.weapon], string.lower(target_name), e.dmg_health, e.health))
-			end
-
-			if compare(dtype, script.type[2]) then
-				print_chat(string.format(" \x08%s \x03%s \x08for \x07%i\x08 damage (\x10%i \x08remaining)", script.weapon_to_verb[e.weapon], string.lower(target_name), e.dmg_health, e.health))
-			end
+			if compare(dtype, script.type[1]) then print(text_format[1]) end
+			if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
 		end
 	end
 end)
