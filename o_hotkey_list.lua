@@ -1,13 +1,17 @@
-local GLOBAL_ALPHA = 0
 local ui_get, ui_set = ui.get, ui.set
+local ui_is_menu_open = ui.is_menu_open
+local globals_frametime = globals.frametime
+local renderer_rectangle = renderer.rectangle
 local measure_text = renderer.measure_text
+local renderer_text = renderer.text
+
 local dragging = (function()local a={}local b,c,d,e,f,g,h,i,j,k,l,m,n,o;local p={__index={drag=function(self,...)local q,r=self:get()local s,t=a.drag(q,r,...)if q~=s or r~=t then self:set(s,t)end;return s,t end,set=function(self,q,r)local j,k=client.screen_size()ui.set(self.x_reference,q/j*self.res)ui.set(self.y_reference,r/k*self.res)end,get=function(self)local j,k=client.screen_size()return ui.get(self.x_reference)/self.res*j,ui.get(self.y_reference)/self.res*k end}}function a.new(u,v,w,x)x=x or 10000;local j,k=client.screen_size()local y=ui.new_slider('LUA','A',u..' window position',0,x,v/j*x)local z=ui.new_slider('LUA','A','\n'..u..' window position y',0,x,w/k*x)ui.set_visible(y,false)ui.set_visible(z,false)return setmetatable({name=u,x_reference=y,y_reference=z,res=x},p)end;function a.drag(q,r,A,B,C,D,E)if globals.framecount()~=b then c=ui.is_menu_open()f,g=d,e;d,e=ui.mouse_position()i=h;h=client.key_state(0x01)==true;m=l;l={}o=n;n=false;j,k=client.screen_size()end;if c and i~=nil then if(not i or o)and h and f>q and g>r and f<q+A and g<r+B then n=true;q,r=q+d-f,r+e-g;if not D then q=math.max(0,math.min(j-A,q))r=math.max(0,math.min(k-B,r))end end end;table.insert(l,{q,r,A,B})return q,r,A,B end;return a end)()
 
-local m_active = { }
-local references = { }
+local GLOBAL_ALPHA = 0
+local m_active, references = { }, { }
 local hotkey_modes = { 'holding', 'toggled', 'disabled' }
 
-local hotkeys_dragging = dragging.new('Keybindings', 100, 200)
+local hotkeys_dragging = dragging.new('Keybinds', 100, 200)
 local active = ui.new_checkbox('CONFIG', 'Presets', 'Hotkey list')
 local color_picker = ui.new_color_picker('CONFIG', 'Presets', 'Hotkey list color picker', 89, 119, 239, 165)
 
@@ -63,8 +67,8 @@ end
 
 local g_paint_handler = function()
     local master_switch = ui_get(active)
-    local is_menu_open = ui.is_menu_open()
-    local frames = 8 * globals.frametime()
+    local is_menu_open = ui_is_menu_open()
+    local frames = 8 * globals_frametime()
 
     local latest_item = false
     local maximum_offset = 0
@@ -127,23 +131,23 @@ local g_paint_handler = function()
         }
     end
 
-    local text = 'keybindings'
+    local text = 'keybinds'
     local x, y = hotkeys_dragging:get()
     local r, g, b, a = ui_get(color_picker)
 
     local height_offset = 23
     local w, h = 75 + maximum_offset, 50
 
-    renderer.rectangle(x, y, w, 2, r, g, b, GLOBAL_ALPHA*255)
-    renderer.rectangle(x, y + 2, w, 18, 17, 17, 17, GLOBAL_ALPHA*a)
+    renderer_rectangle(x, y, w, 2, r, g, b, GLOBAL_ALPHA*255)
+    renderer_rectangle(x, y + 2, w, 18, 17, 17, 17, GLOBAL_ALPHA*a)
 
-    renderer.text(x - renderer.measure_text(nil, text) / 2 + w/2, y + 4, 255, 255, 255, GLOBAL_ALPHA*255, '', 0, text)
+    renderer_text(x - measure_text(nil, text) / 2 + w/2, y + 4, 255, 255, 255, GLOBAL_ALPHA*255, '', 0, text)
 
     for c_name, c_ref in pairs(m_active) do
         local key_type = '[' .. c_ref.mode .. ']'
 
-        renderer.text(x + 5, y + height_offset, 255, 255, 255, GLOBAL_ALPHA*c_ref.alpha*255, '', 0, c_name)
-        renderer.text(x + w - renderer.measure_text(nil, key_type) - 5, y + height_offset, 255, 255, 255, GLOBAL_ALPHA*c_ref.alpha*255, '', 0, key_type)
+        renderer_text(x + 5, y + height_offset, 255, 255, 255, GLOBAL_ALPHA*c_ref.alpha*255, '', 0, c_name)
+        renderer_text(x + w - measure_text(nil, key_type) - 5, y + height_offset, 255, 255, 255, GLOBAL_ALPHA*c_ref.alpha*255, '', 0, key_type)
 
         height_offset = height_offset + 15
     end
