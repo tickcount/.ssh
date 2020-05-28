@@ -176,6 +176,7 @@ create_item('RAGE', 'Aimbot', 'Enabled', 2, 'Rage aimbot')
 create_item('RAGE', 'Aimbot', 'Force safe point', 1, 'Safe point')
 
 create_item('RAGE', 'Other', 'Quick stop', 2)
+create_item('RAGE', 'Other', 'Quick peek assist', 2)
 create_item('RAGE', 'Other', 'Force body aim', 1)
 create_item('RAGE', 'Other', 'Duck peek assist', 1)
 create_item('RAGE', 'Other', 'Double tap', 2)
@@ -184,6 +185,7 @@ create_item('RAGE', 'Other', 'Anti-aim correction override', 1, 'Resolver overri
 create_item('AA', 'Anti-aimbot angles', 'Freestanding', 2)
 create_item('AA', 'Other', 'Slow motion', 2)
 create_item('AA', 'Other', 'On shot anti-aim', 2)
+create_item('AA', 'Other', 'Fake peek', 2)
 
 create_item('MISC', 'Movement', 'Z-Hop', 2)
 create_item('MISC', 'Movement', 'Pre-speed', 2)
