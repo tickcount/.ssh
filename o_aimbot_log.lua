@@ -1,239 +1,204 @@
-local ffi = require("ffi")
-
-local entity_get_local_player = entity.get_local_player
-local entity_get_players = entity.get_players
-local entity_get_prop = entity.get_prop
-local globals_chokedcommands = globals.chokedcommands
-
-local math_floor = math.floor
+local globals_frametime = globals.frametime
 local globals_tickinterval = globals.tickinterval
-
-local string_lower = string.lower
-local table_concat = table.concat
-local entity_get_player_name = entity.get_player_name
-local string_format = string.format
-local client_userid_to_entindex = client.userid_to_entindex
 local entity_is_enemy = entity.is_enemy
+local entity_get_prop = entity.get_prop
+local entity_is_dormant = entity.is_dormant
+local entity_is_alive = entity.is_alive
+local entity_get_origin = entity.get_origin
+local entity_get_local_player = entity.get_local_player
+local entity_get_player_resource = entity.get_player_resource
+local table_insert = table.insert
+local math_floor = math.floor
 
-ffi.cdef[[
-	typedef void***(__thiscall* FindHudElement_t)(void*, const char*);
-	typedef void(__cdecl* ChatPrintf_t)(void*, int, int, const char*, ...);
-]]
+local master_switch = ui.new_checkbox('RAGE', 'Aimbot', 'Log aimbot shots')
+local force_safe_point = ui.reference('RAGE', 'Aimbot', 'Force safe point')
 
-local script = {
-	type = { "Console", "Chat" },
+local time_to_ticks = function(t) return math_floor(0.5 + (t / globals_tickinterval())) end
+local vec_substract = function(a, b) return { a[1] - b[1], a[2] - b[2], a[3] - b[3] } end
+local vec_lenght = function(x, y) return (x * x + y * y) end
 
-	signature_gHud = "\xB9\xCC\xCC\xCC\xCC\x88\x46\x09",
-	signature_FindElement = "\x55\x8B\xEC\x53\x8B\x5D\x08\x56\x57\x8B\xF9\x33\xF6\x39\x77\x28",
+local g_aimbot_data = { }
+local g_sim_ticks, g_net_data = { }, { }
 
-	-- the last 16 aim_fire events
-	g_aim_data = { },
-	g_sim_ticks = { },
-	g_chokes = { },
-
-	g_tick_base = 0,
-	shifted_tick = false,
-
-	hitgroup_names = { "generic", "head", "chest", "stomach", "left arm", "right arm", "left leg", "right leg", "neck", "?", "gear" },
-
-	weapon_to_verb = {
-		knife = 'Knifed',
-		hegrenade = 'Naded',
-		inferno = 'Burned'
-	},
+local cl_data = {
+    tick_shifted = false,
+    tick_base = 0
 }
 
-local log_type = ui.new_multiselect("MISC", "Settings", "Aimbot logging", script.type)
-
-local match = client.find_signature("client_panorama.dll", script.signature_gHud) or error("sig1 not found")
-local hud = ffi.cast("void**", ffi.cast("char*", match) + 1)[0] or error("hud is nil")
-
-local helement_match = client.find_signature("client_panorama.dll", script.signature_FindElement) or error("FindHudElement not found")
-local hudchat = ffi.cast("FindHudElement_t", helement_match)(hud, "CHudChat") or error("CHudChat not found")
-
-local chudchat_vtbl = hudchat[0] or error("CHudChat instance vtable is nil")
-local print_to_chat = ffi.cast("ChatPrintf_t", chudchat_vtbl[27])
-
-local function print_chat(text)
-	--[[
-		\x01 - white
-		\x02 - red
-		\x03 - purple
-		\x04 - green
-		\x05 - yellow green
-		\x06 - light green
-		\x07 - light red
-		\x08 - gray
-		\x09 - light yellow
-		\x0A - gray
-		\x0C - dark blue
-		\x10 - gold
-	]]
-
-	print_to_chat(hudchat, 0, 0, text)
-end
-
-local function reset_aimdata()
-	script.g_aim_data = { }
-	script.g_sim_ticks = { }
-	script.g_chokes = { }
-end
-
-local function time_to_ticks(t)
-	return math_floor(0.5 + (t / globals_tickinterval()))
-end
-
-local function compare(tab, val)
-    for i = 1, #tab do
-        if tab[i] == val then
-            return true
+local get_entities = function(enemy_only, alive_only)
+    local enemy_only = enemy_only ~= nil and enemy_only or false
+    local alive_only = alive_only ~= nil and alive_only or true
+    
+    local result = {}
+    local player_resource = entity_get_player_resource()
+    
+    for player = 1, globals.maxplayers() do
+        local is_enemy, is_alive = true, true
+        
+        if enemy_only and not entity_is_enemy(player) then is_enemy = false end
+        if is_enemy then
+            if alive_only and entity_get_prop(player_resource, 'm_bAlive', player) ~= 1 then is_alive = false end
+            if is_alive then table_insert(result, player) end
         end
     end
-    
-    return false
+
+    return result
 end
 
-client.set_event_callback("net_update_end", function(e)
-	local me = entity_get_local_player()
-	local players = entity_get_players(true)
-
-	local m_tick_base = entity_get_prop(me, "m_nTickBase")
-	
-	script.shifted_tick = false
-
-	if m_tick_base ~= nil then
-		if m_tick_base < script.g_tick_base then
-			script.shifted_tick = true
-		end
-	
-		script.g_tick_base = m_tick_base
-	end
-
-	for i=1, #players do
-		local target = players[i]
-		local newtick = time_to_ticks(entity_get_prop(target, "m_flSimulationTime"))
-		local oldtick = script.g_sim_ticks[target]
-
-		if oldtick ~= nil then
-			local delta = newtick - oldtick
-
-			if delta > 0 and delta <= 64 then
-				script.g_chokes[target] = delta
-			end
-		end
-
-		script.g_sim_ticks[target] = newtick
-	end
-end)
-
-client.set_event_callback("aim_fire", function(e)
-	e.target_choke = script.g_chokes[e.target] or 0
-	e.local_choke = globals_chokedcommands()
-
-	script.g_aim_data[e.id % 16] = e
-end)
-
-client.set_event_callback("aim_miss", function(e)
-	local dtype = ui.get(log_type)
-	local on_fire_data = script.g_aim_data[e.id % 16]
-
-	if #dtype == 0 or on_fire_data == nil or on_fire_data.id ~= e.id then
-		return
-	end
-
-	local flags = {
+local generate_flags = function(e, on_fire_data)
+    return {
 		e.refined and 'R' or '',
 		e.expired and 'X' or '',
 		e.noaccept and 'N' or '',
-		script.shifted_tick and 'S' or '',
+		cl_data.tick_shifted and 'S' or '',
 		on_fire_data.teleported and 'T' or '',
 		on_fire_data.interpolated and 'I' or '',
 		on_fire_data.extrapolated and 'E' or '',
 		on_fire_data.boosted and 'B' or '',
 		on_fire_data.high_priority and 'H' or ''
     }
+end
 
-	local name = string_lower(entity_get_player_name(e.target))
-	local hgroup = script.hitgroup_names[e.hitgroup + 1] or '?'
-	local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. "%%"
-    local bt = time_to_ticks(on_fire_data.backtrack)
-    
-    local text_format = {
-        string_format("[%d] Missed %s's %s(%i)(%s) due to %s, bt=%i (%s) (%i:%i)", e.id % 100, name, hgroup, on_fire_data.damage, hitchance, e.reason, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke),
-        string_format(" \x08[\x06%d\x08] Missed %s's \x10%s\x08(%i)(%s) due to \x07%s\x08, bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)", e.id % 100, name, hgroup, on_fire_data.damage, hitchance, e.reason, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke)
-    }
+local hitgroup_names = { 'generic', 'head', 'chest', 'stomach', 'left arm', 'right arm', 'left leg', 'right leg', 'neck', '?', 'gear' }
+local weapon_to_verb = { knife = 'Knifed', hegrenade = 'Naded', inferno = 'Burned' }
 
-	if compare(dtype, script.type[1]) then print(text_format[1]) end
-	if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
-end)
-
-client.set_event_callback("aim_hit", function(e)
-	local dtype = ui.get(log_type)
-	local on_fire_data = script.g_aim_data[e.id % 16]
-
-	if #dtype == 0 or on_fire_data == nil or on_fire_data.id ~= e.id then
-		return
-	end
-
-	local flags = {
-		e.refined and 'R' or '',
-		script.shifted_tick and 'S' or '',
-		on_fire_data.teleported and 'T' or '',
-		on_fire_data.interpolated and 'I' or '',
-		on_fire_data.extrapolated and 'E' or '',
-		on_fire_data.boosted and 'B' or '',
-		on_fire_data.high_priority and 'H' or ''
-    }
-
-	local name = string_lower(entity_get_player_name(e.target))
-	local hgroup = script.hitgroup_names[e.hitgroup + 1] or '?'
-	local aimed_hgroup = script.hitgroup_names[on_fire_data.hitgroup + 1] or '?'
-
-	local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. "%%"
-	local bt = time_to_ticks(on_fire_data.backtrack)
-
-    local health = entity_get_prop(e.target, 'm_iHealth')
-    local prev_dmg = e.damage ~= on_fire_data.damage and " (\x10" .. on_fire_data.damage .. "\x08)" or ""
-
-    local text_format = {
-        string_format("[%d] Hit %s's %s for %i(%d) (%i remaining) aimed=%s(%s) bt=%i (%s) (%i:%i)", e.id % 100, name, hgroup, e.damage, on_fire_data.damage, health, aimed_hgroup, hitchance, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke),
-        string_format(" \x08[\x06%d\x08] Hit %s's \x10%s\x08 for \x07%i\x08%s (%i \x08remaining) aimed=\x0C%s\x08(%s) bt=\x10%i\x08 (\x09%s\x08) (\x10%i\x08:\x10%i\x08)", e.id % 100, name, hgroup, e.damage, prev_dmg, health, aimed_hgroup, hitchance, bt, table_concat(flags), on_fire_data.local_choke, on_fire_data.target_choke )
-    }
-
-	if compare(dtype, script.type[1]) then print(text_format[1]) end
-	if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
-end)
-
-client.set_event_callback('player_hurt', function(e)
-	local dtype = ui.get(log_type)
-    local attacker_id = client_userid_to_entindex(e.attacker)
+--region net_update
+local function g_net_update()
+	local me = entity_get_local_player()
+    local players = get_entities(true, true)
+	local m_tick_base = entity_get_prop(me, 'm_nTickBase')
 	
-    if #dtype == 0 or attacker_id == nil or attacker_id ~= entity_get_local_player() then
+    cl_data.tick_shifted = false
+    
+	if m_tick_base ~= nil then
+		if cl_data.tick_base ~= 0 and m_tick_base < cl_data.tick_base then
+			cl_data.tick_shifted = true
+		end
+	
+		cl_data.tick_base = m_tick_base
+    end
+
+	for i=1, #players do
+		local idx = players[i]
+        local prev_tick = g_sim_ticks[idx]
+        
+        if entity_is_dormant(idx) or not entity_is_alive(idx) then
+            g_sim_ticks[idx] = nil
+            g_net_data[idx] = nil
+        else
+            local player_origin = { entity_get_origin(idx) }
+            local simulation_time = time_to_ticks(entity_get_prop(idx, 'm_flSimulationTime'))
+    
+            if prev_tick ~= nil then
+                local delta = simulation_time - prev_tick.tick
+
+                if delta < 0 or delta > 0 and delta <= 64 then
+                    local m_fFlags = entity_get_prop(idx, 'm_fFlags')
+
+                    local diff_origin = vec_substract(player_origin, prev_tick.origin)
+                    local teleport_distance = vec_lenght(diff_origin[1], diff_origin[2])
+
+                    g_net_data[idx] = {
+                        tick = delta-1,
+
+                        origin = player_origin,
+                        tickbase = delta < 0,
+                        lagcomp = teleport_distance > 4096,
+                    }
+                end
+            end
+
+            g_sim_ticks[idx] = {
+                tick = simulation_time,
+                origin = player_origin,
+            }
+        end
+    end
+end
+--endregion
+
+local function g_aim_fire(e)
+    local data = e
+
+    local plist_sp = plist.get(e.target, 'Override safe point')
+    local checkbox = ui.get(force_safe_point)
+
+    if g_net_data[e.target] == nil then
+        g_net_data[e.target] = { }
+    end
+
+    data.teleported = g_net_data[e.target].lagcomp or false
+    data.choke = g_net_data[e.target].tick or '?'
+    data.self_choke = globals.chokedcommands()
+    data.safe_point = ({
+        ['Off'] = 'off',
+        ['On'] = true,
+        ['-'] = checkbox
+    })[plist_sp]
+
+    g_aimbot_data[e.id] = data
+end
+
+local function g_aim_hit(e)
+    if not ui.get(master_switch) or g_aimbot_data[e.id] == nil then
         return
     end
 
-    local group = script.hitgroup_names[e.hitgroup + 1] or "?"
-	local target_id = client_userid_to_entindex(e.userid)
-	
-	if not entity_is_enemy(target_id) then
-		return
-	end
-	
-	if group == "generic" then
-		if script.weapon_to_verb[e.weapon] ~= nil then
-            local target_name = entity_get_player_name(target_id)
-            
-            local text_format = {
-                string_format("%s %s for %i damage (%i remaining) ", script.weapon_to_verb[e.weapon], string_lower(target_name), e.dmg_health, e.health),
-                string_format(" \x08%s \x03%s \x08for \x07%i\x08 damage (\x10%i \x08remaining)", script.weapon_to_verb[e.weapon], string_lower(target_name), e.dmg_health, e.health)
-            }
+    local on_fire_data = g_aimbot_data[e.id]
+	local name = string.lower(entity.get_player_name(e.target))
+	local hgroup = hitgroup_names[e.hitgroup + 1] or '?'
+    local aimed_hgroup = hitgroup_names[on_fire_data.hitgroup + 1] or '?'
+    
+    local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. '%'
+    local health = entity_get_prop(e.target, 'm_iHealth')
 
-			if compare(dtype, script.type[1]) then print(text_format[1]) end
-			if compare(dtype, script.type[2]) then print_chat(text_format[2]) end
-		end
-	end
-end)
+    local flags = generate_flags(e, on_fire_data)
 
-client.set_event_callback("cs_game_disconnected", reset_aimdata)
-client.set_event_callback("game_newmap", reset_aimdata)
-client.set_event_callback("round_end", reset_aimdata)
+    print(string.format(
+        '[%d] Hit %s\'s %s for %i(%d) (%i remaining) aimed=%s(%s) safety=%s (%s) (%s:%s)', 
+        e.id, name, hgroup, e.damage, on_fire_data.damage, health, aimed_hgroup, hitchance, on_fire_data.safe_point, table.concat(flags), on_fire_data.self_choke, on_fire_data.choke
+    ))
+end
+
+local function g_aim_miss(e)
+    if not ui.get(master_switch) or g_aimbot_data[e.id] == nil then
+        return
+    end
+
+    local on_fire_data = g_aimbot_data[e.id]
+    local name = string.lower(entity.get_player_name(e.target))
+
+	local hgroup = hitgroup_names[e.hitgroup + 1] or '?'
+    local hitchance = math_floor(on_fire_data.hit_chance + 0.5) .. '%'
+
+    local flags = generate_flags(e, on_fire_data)
+
+    print(string.format(
+        '[%d] Missed %s\'s %s(%i)(%s) due to %s, safety=%s (%s) (%s:%s)', 
+        e.id, name, hgroup, on_fire_data.damage, hitchance, e.reason, on_fire_data.safe_point, table.concat(flags), on_fire_data.self_choke, on_fire_data.choke
+    ))
+end
+
+local function g_player_hurt(e)
+    local attacker_id = client.userid_to_entindex(e.attacker)
+	
+    if not ui.get(master_switch) or attacker_id == nil or attacker_id ~= entity.get_local_player() then
+        return
+    end
+
+    local group = hitgroup_names[e.hitgroup + 1] or "?"
+	
+    if group == "generic" and weapon_to_verb[e.weapon] ~= nil then
+        local target_id = client.userid_to_entindex(e.userid)
+		local target_name = entity.get_player_name(target_id)
+
+		print(string.format("%s %s for %i damage (%i remaining) ", weapon_to_verb[e.weapon], string.lower(target_name), e.dmg_health, e.health))
+	end
+end
+
+client.set_event_callback('aim_fire', g_aim_fire)
+client.set_event_callback('aim_hit', g_aim_hit)
+client.set_event_callback('aim_miss', g_aim_miss)
+client.set_event_callback('net_update_end', g_net_update)
+
+client.set_event_callback('player_hurt', g_player_hurt)
