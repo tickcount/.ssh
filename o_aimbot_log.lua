@@ -11,6 +11,9 @@ local table_insert = table.insert
 local math_floor = math.floor
 
 local master_switch = ui.new_checkbox('RAGE', 'Aimbot', 'Log aimbot shots')
+local master_switch_hitboxes = ui.new_checkbox('RAGE', 'Aimbot', 'Aimbot shots hitboxes')
+local hitboxes_color = ui.new_color_picker('RAGE', 'Aimbot', 'Shots hitboxes color', 255, 0, 0, 65)
+local hitboxes_time = ui.new_slider('RAGE', 'Aimbot', '\n Shots hitboxes time', 5, 200, 20, true, 's', 0.1)
 local force_safe_point = ui.reference('RAGE', 'Aimbot', 'Force safe point')
 
 local time_to_ticks = function(t) return math_floor(0.5 + (t / globals_tickinterval())) end
@@ -119,6 +122,12 @@ end
 
 local function g_aim_fire(e)
     local data = e
+
+    if ui.get(master_switch_hitboxes) then
+        local r, g, b, a = ui.get(hitboxes_color)
+
+        client.draw_hitboxes(e.target, ui.get(hitboxes_time)/10, 19, r, g, b, a, e.tick)
+    end
 
     local plist_sp = plist.get(e.target, 'Override safe point')
     local checkbox = ui.get(force_safe_point)
