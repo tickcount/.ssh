@@ -23,6 +23,7 @@ local math_sqrt = math.sqrt
 
 local renderer_measure_text = renderer.measure_text
 local renderer_rectangle = renderer.rectangle
+local renderer_gradient = renderer.gradient
 local renderer_text = renderer.text
 local renderer_circle_outline = renderer.circle_outline
 
@@ -323,11 +324,14 @@ local g_paint_handler = function()
                 local text = string_format('%sFAKE (%.1f°) | safety: %.0f%% | side: %s', add_text, abs_yaw, abs_yaw/60*100, side)
                 local h, w = 17, renderer_measure_text(nil, text) + 8
                 local x, y = client_screen_size(), 10 + (25*id)
+                
+                local alpha = (success and ({ ui_get(data2) })[4] or 255)
         
                 x = x - w - 10
         
                 renderer_rectangle(x-3, y, 2, h, r, g, b, 255)
-                renderer_rectangle(x-1, y, w+1, h, 17, 17, 17, (success and ({ ui_get(data2) })[4] or 255))
+                renderer_gradient(x-1, y, (w+1) / 2, h, 0, 0, 0, 25, 17, 17, 17, alpha, true)
+                renderer_gradient(x-1 + w/2, y, (w+1) / 2, h, 17, 17, 17, alpha, 0, 0, 0, 25, true)
                 renderer_text(x+4, y + 2, 255, 255, 255, 255, "", 0, text)
     
                 if locals.lby_can_update and timer >= 0 then
