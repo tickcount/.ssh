@@ -25,7 +25,7 @@ local set_blur_state = function(no_draw)
     end
 end
 
-local function g_handler(c)
+local function g_handler()
     local me = entity_get_local_player()
     local wpn = entity_get_player_weapon(me)
 
