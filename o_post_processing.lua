@@ -1,7 +1,7 @@
 local ui_processig = ui.reference('VISUALS', 'Effects', 'Disable post processing')
 
 local list = { 'Global', 'Vignette', 'Bloom', 'Shadows', 'Blood' }
-local master_switch = ui.new_multiselect('Visuals', 'Effects', 'Post processing', list)
+local master_switch = ui.new_multiselect('Visuals', 'Effects', 'Disable post processing \n csm', list)
 
 local cvar_postprocess = cvar.mat_postprocess_enable
 local cvar_vignette = cvar.mat_vignette_enable
