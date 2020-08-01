@@ -29,6 +29,7 @@ end
 local g_callback = function()
     local enabled = ui.get(active)
 
+    ui.set_visible(start_distance, enabled)
     ui.set_visible(distance, enabled)
     ui.set_visible(density, enabled)
 end
