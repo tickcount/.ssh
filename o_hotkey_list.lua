@@ -49,19 +49,15 @@ local create_custom_item = function(req, ref)
         end
     end
 
-    local get_script_name = function()
-        local funca, err = pcall(function() GS_THROW_ERROR() end)
-        return (not funca and err:match("\\(.*):(.*):") or nil)
-    end
-
-    if not reference_if_exists(ref[1], ref[2], ref[3]) then
+    if reference_if_exists(ref[1], ref[2], ref[3]) then
+        create_item(unpack(ref))
+    else
         if pcall(require, req) and reference_if_exists(ref[1], ref[2], ref[3]) then
             create_item(unpack(ref))
         else
-            client.log(string.format('%s: Unable to reference - %s (%s.lua/ljbc)', get_script_name(), ref[3], req))
+            client.color_log(182, 231, 23, '[gamesense] \0')
+            client.color_log(255, 0, 0, string.format('%s.lua: Unable to reference - %s (%s.lua)', _NAME, ref[3], req))
         end
-    else
-        create_item(unpack(ref))
     end
 end
 
@@ -198,3 +194,5 @@ create_item('MISC', 'Miscellaneous', 'Free look', 1)
 create_item('MISC', 'Miscellaneous', 'Ping spike', 2)
 create_item('MISC', 'Miscellaneous', 'Automatic grenade release', 2, 'Grenade release')
 create_item('VISUALS', 'Player ESP', 'Activation type', 1, 'Visuals')
+
+-- create_custom_item('o_weapon_mindmg', { 'RAGE', 'Other', 'Minimum damage override', 2, 'Damage override' })
