@@ -2,7 +2,7 @@ local active = ui.new_checkbox('CONFIG', 'Presets', 'Watermark')
 local color_picker = ui.new_color_picker('CONFIG', 'Presets', 'Watermark color picker', 89, 119, 239, 255)
 
 local nickname = 'Salvatore'
-local ctag = 'skeet.cc [metamod]'
+local ctag = 'skeet.cc'
 
 -- Things
 local ffi = require 'ffi'
