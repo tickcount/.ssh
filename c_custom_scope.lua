@@ -44,11 +44,12 @@ local g_paint = function()
     local wpn = entity_get_player_weapon(me)
 
     local scope_level = entity_get_prop(wpn, 'm_zoomLevel')
+    local scoped = entity.get_prop(me, 'm_bIsScoped') == 1
     local resume_zoom = entity_get_prop(me, 'm_bResumeZoom') == 1
 
     local is_valid = entity_is_alive(me) and wpn ~= nil and scope_level ~= nil
 
-    if is_valid and scope_level > 0 and not resume_zoom then
+    if is_valid and scope_level > 0 and scoped and not resume_zoom then
         global_alpha = clamp(global_alpha+FT, 0, 1)
     else
         global_alpha = clamp(global_alpha-FT, 0, 1)
