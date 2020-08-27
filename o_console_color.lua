@@ -9,7 +9,7 @@ ui.new_label('misc', 'settings', 'VGUI Color')
 local recolor_console = ui.new_color_picker('misc', 'settings', 'VGUI Color picker', 81, 81, 81, 210)
 local materials = { 'vgui_white', 'vgui/hud/800corner1', 'vgui/hud/800corner2', 'vgui/hud/800corner3', 'vgui/hud/800corner4' }
 
-client.set_event_callback('paint_ui', function()
+client.set_event_callback('paint', function()
     local r, g, b, a = ui.get(recolor_console)
 
     if not console_is_visible(engine_client) then
