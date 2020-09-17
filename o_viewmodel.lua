@@ -1,4 +1,3 @@
--- local variables for API functions. any changes to the line below will be lost on re-generation
 local client_set_event_callback, entity_get_classname, entity_get_local_player, entity_get_player_weapon, string_match, ui_get, ui_new_combobox, ui_new_slider = client.set_event_callback, entity.get_classname, entity.get_local_player, entity.get_player_weapon, string.match, ui.get, ui.new_combobox, ui.new_slider
 
 local dir, restore = { 'LUA', 'B', 4000, { '-', 'Left hand', 'Right hand' } }
