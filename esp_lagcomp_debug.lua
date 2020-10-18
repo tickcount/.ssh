@@ -1,3 +1,6 @@
+-- kinda old release
+-- decided to post it on github since im planning to rework the entire thing
+
 local g_esp_data = { }
 local g_sim_ticks, g_net_data = { }, { }
 
