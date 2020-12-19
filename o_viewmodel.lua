@@ -19,9 +19,9 @@ local ffi_to = {
     client_entity = ffi.typeof('void*(__thiscall*)(void*, int)'),
     
     set_angles = (function()
-        ffi.cdef('typedef struct { float x; float y; float z; } vec3_t;')
+        ffi.cdef('typedef struct { float x; float y; float z; } vmodel_vec3_t;')
 
-        return ffi.typeof('void(__thiscall*)(void*, const vec3_t&)')
+        return ffi.typeof('void(__thiscall*)(void*, const vmodel_vec3_t&)')
     end)()
 }
 
@@ -101,7 +101,7 @@ local g_override_view = function()
     end
 
     local camera_angles = { client_camera_angles() }
-    local angles = ffi.cast('vec3_t*', ffi.new('char[?]', ffi.sizeof('vec3_t')))
+    local angles = ffi.cast('vmodel_vec3_t*', ffi.new('char[?]', ffi.sizeof('vmodel_vec3_t')))
 
     angles.x, angles.y, angles.z = 
         camera_angles[1], camera_angles[2], ui_get(menu.roll)
