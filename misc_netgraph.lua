@@ -6,6 +6,7 @@ end
 
 local ffi = require 'ffi'
 local ffi_cast = ffi.cast
+local surface_measure_text = surface.measure_text
 local client_create_interface, client_screen_size, client_set_event_callback, entity_get_local_player, globals_tickinterval, math_abs, pcall, error, globals_frametime, globals_realtime, math_floor, math_max, math_min, math_sin, renderer_load_rgba, renderer_texture, string_format, ui_get, ui_reference, print = client.create_interface, client.screen_size, client.set_event_callback, entity.get_local_player, globals.tickinterval, math.abs, pcall, error, globals.frametime, globals.realtime, math.floor, math.max, math.min, math.sin, renderer.load_rgba, renderer.texture, string.format, ui.get, ui.reference, print
 
 -- CONVARS
