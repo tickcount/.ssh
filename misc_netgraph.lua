@@ -196,7 +196,6 @@ local function g_paint()
     surface_draw_text(sp_x + nd_width, sp_y + 20*cn, 255, 255 / 100 * additional_latency, 255 / 100 * additional_latency, LC_ALPHA*255, verdana, fl_text); cn=cn+1
 end
 
-client_set_event_callback('shutdown', update_clocks)
 client_set_event_callback('paint', g_paint)
 
 --[[
