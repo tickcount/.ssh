@@ -1,3 +1,6 @@
+-- cringe clock syncing thing
+-- credits: @estk - ping spike (datagram ind.) checks
+
 local success, surface = pcall(require, 'gamesense/surface')
 
 if not success then
