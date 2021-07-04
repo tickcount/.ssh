@@ -3,6 +3,8 @@ local bit_band, bit_lshift, client_color_log, client_create_interface, client_de
 
 -- posting the entire source of the script
 -- since it got leaked by people who cracked gamesense
+-- p.s nice one @esoterik, u could've prevented it but instead u let people get raw src of the script
+-- p.s.s imagine streaming raw srcs of the workshop scripts (literally no xor/obfuscation/compilation) :sunglasses: 
 
 local ffi = require 'ffi'
 local vector = require 'vector'
