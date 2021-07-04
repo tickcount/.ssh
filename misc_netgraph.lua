@@ -1,5 +1,5 @@
 -- cringe clock syncing thing
--- credits: @estk - ping spike (datagram ind.) checks
+-- credits: @estk - ping spike (datagram ind.) calculations
 
 local success, surface = pcall(require, 'gamesense/surface')
 
