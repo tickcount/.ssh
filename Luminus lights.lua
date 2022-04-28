@@ -5,9 +5,6 @@ local icon = '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x
 local ffi = require 'ffi'
 local vector = require 'vector'
 
--- posting the entire source of the script
--- since it got leaked by people who cracked gamesense
-
 ffi.cdef[[
     typedef struct { 
         float x; 

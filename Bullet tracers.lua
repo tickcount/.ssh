@@ -1,22 +1,6 @@
 -- local variables for API functions. any changes to the line below will be lost on re-generation
 local bit_band, bit_bor, client_eye_position, client_find_signature, client_userid_to_entindex, entity_get_local_player, entity_get_player_weapon, entity_get_prop, entity_hitbox_position, entity_is_enemy, globals_realtime, globals_tickcount, math_sqrt, table_insert, table_remove, ui_get, ui_new_checkbox, ui_new_color_picker, ui_new_combobox, ui_new_slider, ui_reference, pairs, ui_set, ui_set_callback, ui_set_visible = bit.band, bit.bor, client.eye_position, client.find_signature, client.userid_to_entindex, entity.get_local_player, entity.get_player_weapon, entity.get_prop, entity.hitbox_position, entity.is_enemy, globals.realtime, globals.tickcount, math.sqrt, table.insert, table.remove, ui.get, ui.new_checkbox, ui.new_color_picker, ui.new_combobox, ui.new_slider, ui.reference, pairs, ui.set, ui.set_callback, ui.set_visible
 
---[[	PVS-Fix
-
-	local vmt = require 'vmt_hooking'
-	local IsBoxVisible = function(original_fn)
-		if true then
-			return 1
-		end
-	end
-
-	vmt:hook_vtable(
-	    'engine.dll', 'VEngineClient014', 32, 
-	    'int(__stdcall*)()', 
-	    IsBoxVisible
-	)
-]]
-
 local ffi = require 'ffi'
 local sprites = { 
     ['Blue glow'] = "sprites/blueglow1.vmt",
